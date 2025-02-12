@@ -1,0 +1,66 @@
+#define PIR_PIN 2    // PIR motion sensor(Interrupt)
+#define TRIG_PIN 9   // Ultrasonic sensor 
+#define ECHO_PIN 10  // Ultrasonic sensor 
+#define LED_PIN 13    
+
+volatile bool motionDetected = false;
+volatile long distanceMeasured = 0;
+volatile unsigned long lastMillis = 0;
+const unsigned long interval = 500; 
+
+// PIR Interrupt Handler
+void motionISR() {
+    motionDetected = true;
+}
+
+// Ultrasonic Sensor Measurement
+void measureDistance() {
+    digitalWrite(TRIG_PIN, LOW);
+    delayMicroseconds(2);
+    digitalWrite(TRIG_PIN, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIG_PIN, LOW);
+
+    long duration = pulseIn(ECHO_PIN, HIGH, 30000); 
+    distanceMeasured = (duration > 0) ? (duration * 0.034 / 2) : -1;
+
+    Serial.print("Distance: ");
+    Serial.print(distanceMeasured);
+    Serial.println(" cm");
+}
+
+// Timer-Based Interrupt 
+void timerISR() {
+    if (millis() - lastMillis >= interval) {
+        lastMillis = millis();
+        measureDistance();
+    }
+}
+
+void setup() {
+    Serial.begin(9600);
+    
+    pinMode(PIR_PIN, INPUT);
+    pinMode(TRIG_PIN, OUTPUT);
+    pinMode(ECHO_PIN, INPUT);
+    pinMode(LED_PIN, OUTPUT);
+
+    // Attach interrupt for PIR sensor (Motion Detection)
+    attachInterrupt(digitalPinToInterrupt(PIR_PIN), motionISR, RISING);
+
+    Serial.println("System Ready. Waiting for motion...");
+}
+
+void loop() {
+    // Motion Detected Interrupt Handling
+    if (motionDetected) {
+        Serial.println("Motion Detected!");
+        digitalWrite(LED_PIN, HIGH);
+        delay(2000);  // Keep LED on for 2 sec
+        digitalWrite(LED_PIN, LOW);
+        motionDetected = false;
+    }
+
+    // Simulating Timer Interrupt for Ultrasonic Sensor
+    timerISR(); 
+}
